@@ -1,47 +1,74 @@
 //For more information on the product, check https://www.ydlidar.com/product/ydlidar-g2 and https://dedjh0j7jhutx.cloudfront.net/2036899223840006144/0a0bd6eb3b832ab36a363b58ed00b952.pdf
 //For more information on the protocol, check : https://github.com/YDLIDAR/YDLidar-SDK/blob/master/doc/YDLidar-SDK-Communication-Protocol.md
 
+// Number of angular steps (1 degree resolution for 360 degrees)
 var angleSteps = 360; //1 degre resolution
+// Number of data rows per point: angle/distance/intensity or X/Y/intensity
 var rows = 3; //angle, distance, intensity or X, Y, intensity
 
+// Index used to animate a single radar point across the scan
 var radarIndex = 0;
 
-var arrayPol360 = []; //Array of angle, distance, intensity
-var arrayXY360 = []; //Array of X, Y, intensity
-var XYRadar = [0.0,0.0,0.0]; //Point 3D enabling to display a "radar view" with one point moving in the dashboard through a mapping
-var polRadar = [0.0,0.0,0.0]; //Point 3D enabling to display a "radar view" with one point moving in the dashboard through a mapping
+// Array to store polar coordinates (angle, distance, intensity) for each degree
+var arrayPol360 = []; 
+// Array to store Cartesian coordinates (X, Y, intensity) for each degree
+var arrayXY360 = [];
+// Temporary 3D point used for radar visualization in Chataigne
+var XYRadar = [0.0,0.0,0.0]; 
+// Temporary 3D point used for radar visualization in Chataigne
+var polRadar = [0.0,0.0,0.0];
 
+// Start angle of the current LIDAR scan packet
 var start_angle = 0;
+// End angle of the current LIDAR scan packet
 var end_angle = 0;
+// Angular difference between start and end angles
 var diff_angle = 0;
 
+// Intensity value of the LIDAR return signal
 var intensity = 0;
+// Distance value measured by the LIDAR
 var distance = 0;
+// Interpolated angle for each sample point
 var inter_angle = 0;
 
+// Corrected angle after applying LIDAR-specific calibration
 var angle_correct = 0;
+// Angle in radians used for trigonometric calculations
 var radians = 0;         
+// X coordinate in Cartesian space
 var pos_x = 0;
+// Y coordinate in Cartesian space
 var pos_y = 0;
 
+// Frequency of the LIDAR scan
 var frequency = 0;
+// Type of data packet received from LIDAR
 var packetType = 0;
+// Number of sample points in the current scan packet
 var sampleCount = 0;
+// First sample angle bytes (LSB and MSB)
 var fsa1 = 0;
+// First sample angle bytes (LSB and MSB)
 var fsa2 = 0;
+// Last sample angle bytes (LSB and MSB)
 var lsa1 = 0;
+// Last sample angle bytes (LSB and MSB)
 var lsa2 = 0;
 
+// Flag indicating whether the current data chunk should be processed
 var processChunk = 0;
+// Array holding the raw data bytes from the LIDAR
 var dataChunk = [];
 
+// Initializes the data structures and parameters for LIDAR visualization.
 function init() {
 
     for(var i = 0; i < angleSteps; i++) {
-    arrayPol360[i] = []; // Initialize a new row
+    arrayPol360[i] = []; 
     arrayXY360[i] = [];
       for(var j = 0; j < rows; j++) {
-        arrayPol360[i][j] = (j==0) * i; // Assign a value - 1 col = 1 degree
+        arrayPol360[i][j] = (j==0) * i; // Assign a value -- one column = 1 degree
         arrayXY360[i][j] = 0;
       }
       local.values.polarCoords.addPoint3DParameter(i, "");
@@ -54,6 +81,7 @@ function init() {
     script.log("YLidarG2 module init done");
 }
 
+// Handles changes in module parameters, such as connection status or update rate.
 function moduleParameterChanged(param) { //event trigged when a parameter is modified
 
     if (param.isParameter()) { //parameter change management
@@ -74,10 +102,12 @@ function moduleParameterChanged(param) { //event trigged when a parameter is mod
     }
 }
 
+// Handles changes in module values (not used actively in this script).
 function moduleValueChanged(value) { //event trigged when a value is modified
     //script.log(value.name + " value changed, new value: " + value.get());
 }
 
+// Main update loop that processes the LIDAR data chunk and updates the visualization arrays.
 function update(deltaTime) { //loop function, delta time can be changed thanks to : script.updateRate.set([your update rate]);
     if (local.parameters.isConnected.get() && processChunk) {
       
@@ -94,9 +124,9 @@ function update(deltaTime) { //loop function, delta time can be changed thanks t
 
         for (var i = 0; i < sampleCount; i++) {
             base = 10 + 3 * i;
-            // Calcul de l’intensité lumineuse
+            // Light intensity calculation
             intensity = dataChunk[base] + (dataChunk[base + 1] & 3) * 256;
-            // Calcul de la distance
+            // Distance calculation
             distance = ((dataChunk[base + 1] >> 2) | (dataChunk[base + 2] << 6));
 
             if (i > 0 && i < sampleCount - 1) {
@@ -108,12 +138,12 @@ function update(deltaTime) { //loop function, delta time can be changed thanks t
             }
 
             angle_correct = angleCorrect(inter_angle, distance);
-            //Calcul des coordonnées x, y
+            //x and y corrdinates calculation
             radians = angle_correct * Math.PI / 180.;
             pos_x = distance * Math.cos(radians);
             pos_y = distance * Math.sin(radians);
             
-            angle_correct_floored = Math.floor(angle_correct) % 360;
+            angle_correct_floored = (Math.floor(angle_correct+0.5)) % 360;
 
             arrayPol360[angle_correct_floored][0] = angle_correct;
             arrayPol360[angle_correct_floored][1] = distance;
@@ -140,6 +170,7 @@ function update(deltaTime) { //loop function, delta time can be changed thanks t
     }
 }
 
+// Handles incoming serial data from the LIDAR and validates it before processing.
 function dataReceived(data) { //serial received management
    
     frequency = (data[2] >> 1) / 10.0;
@@ -157,10 +188,12 @@ function dataReceived(data) { //serial received management
     }
 }
 
+// Computes the angle from two bytes (LSB and MSB) using the LIDAR protocol.
 function firstLevelAngle(lsb, msb) {
     return ((lsb | (msb << 8)) >> 1) / 64.0;
   }
   
+// Calculates the difference between end and start angles, accounting for wrap-around.
 function diffAngle(endAngle, startAngle) {
     if (endAngle < startAngle) {
       endAngle += 360;
@@ -168,6 +201,7 @@ function diffAngle(endAngle, startAngle) {
     return endAngle - startAngle;
   }
   
+// Computes the interpolated angle for a given sample index.
 function interAngle(idx, diffAngle, lsn, startAngle) {
     var ret = (diffAngle / (lsn - 1)) * idx + startAngle;
     if (ret >= 360) {
@@ -176,6 +210,7 @@ function interAngle(idx, diffAngle, lsn, startAngle) {
     return ret;
   }
 
+// Applies a correction to the angle based on the distance to improve accuracy.
 function angleCorrect(angle, distance) {
     if (distance === 0) {
       return 0.0;
@@ -188,6 +223,7 @@ function angleCorrect(angle, distance) {
     return corrected;
   } 
 
+// Verifies the checksum of the received data to ensure integrity.
 function checkCode(data) {
     var lenData = data.length;
     var lsn = parseInt(data[3]);
@@ -215,12 +251,14 @@ function checkCode(data) {
     return cs === tmp_cs;
   }
   
+// Copies the contents of one array into another.
 function cloneArray(sourceArray, destArray) {
   for (var i = 0; i < sourceArray.length; i++) {
     destArray[i] = sourceArray[i];
   }
 }
 
+// Converts a decimal number to its hexadecimal string representation.
 function decimalToHex(decimal) {
     if (decimal === 0) {
       return "0";

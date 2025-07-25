@@ -1,0 +1,71 @@
+{
+  "name": "YLidar G2",
+  "type": "Serial",
+  "path": "Hardware",
+
+  "version": "0.0.1",
+  "description": "BETA - Special Serial Chataigne Module for YLidarG2 - check : https://www.ydlidar.com/product/ydlidar-g2 and https://github.com/YDLIDAR/YDLidar-SDK/blob/master/doc/YDLidar-SDK-Communication-Protocol.md",
+  "url": "https://github.com/gniluje/YLidar-Chataigne-Module-main",
+  "downloadURL": "https://github.com/gniluje/YLidar-Chataigne-Module-main/archive/master.zip",
+
+  "hasInput": true,
+  "hasOutput": true,
+  "hideDefaultCommands": false,
+
+  "defaults": {
+    "Protocol": "Raw",
+    "BaudRate": 230400,
+    "autoAdd": false
+  },
+
+  "hideDefaultParameters": [
+    "protocol",
+    "messageStructure",
+    "customSeparator",
+    "dtr",
+    "rts",
+    "firstValueIsTheName"
+  ],
+
+  "parameters": {
+    "Start Lidar": {
+      "type": "Trigger"
+    },
+      "Stop Lidar": {
+      "type": "Trigger"
+    },
+      "Update Rate": {
+      "type": "Integer",
+      "default" :  100
+    }
+  },
+
+  "values": {
+    "Polar Coords": {
+      "type": "Container",
+      "collapsed": true,
+      "readOnly":true
+    },
+    "XY Coords": {
+      "type": "Container",
+      "collapsed": true,
+      "readOnly":true
+    },
+      "Pol Radar": {
+        "type": "Point3D",
+        "readOnly":true
+    },
+      "XY Radar": {
+        "type": "Point3D",
+        "readOnly":true
+    }
+  },
+
+  "scripts": [
+    "YLidarG2.js"
+  ],
+
+  "commands": {
+  }
+
+}
